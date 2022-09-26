@@ -1,36 +1,42 @@
-#[derive(Debug, Copy, Clone)]
+const G: f64 = 6.67430e-11;
+
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Vec3d {
     // Unit vec.
     x: f64,
     y: f64,
     z: f64,
-
-    // Magnitude of the vector.
-    mag: f64,
 }
 
 impl Vec3d {
     pub fn new(x: f64, y: f64, z: f64) -> Vec3d {
-        let mag = (x * x + y * y + z * z).sqrt();
-        return Vec3d {
-            x: x / mag,
-            y: y / mag,
-            z: z / mag,
-            mag: mag,
-        };
+        return Vec3d { x: x, y: y, z: z };
+    }
+
+    pub fn new_zero() -> Vec3d {
+        return Vec3d::new(0.0, 0.0, 0.0);
     }
 
     pub fn magnitude(&self) -> f64 {
-        return self.mag;
+        let (x, y, z) = self.position();
+        return (x * x + y * y + z * z).sqrt();
     }
 
     pub fn position(self) -> (f64, f64, f64) {
-        return (self.mag * self.x, self.mag * self.y, self.mag * self.z);
+        return (self.x, self.y, self.z);
     }
 
     pub fn distance(self, other: Vec3d) -> Vec3d {
         let (ox, oy, oz) = other.position();
         return Vec3d::new(ox - self.x, oy - self.y, oz - self.z);
+    }
+}
+
+impl std::ops::AddAssign<Vec3d> for Vec3d {
+    fn add_assign(&mut self, rhs: Vec3d) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+        self.z + rhs.z;
     }
 }
 
@@ -68,11 +74,7 @@ impl std::ops::Div<f64> for Vec3d {
     }
 }
 
-fn norm(x: f64, y: f64, z: f64) -> f64 {
-    return (x * x + y * y + z * z).sqrt();
-}
-
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Point {
     mass: f64,
     vel: Vec3d,
@@ -110,6 +112,17 @@ impl Point {
         );
     }
 
+    pub fn force_from(self, dt: f64, p: Point) -> Vec3d {
+        let (ox, oy, oz) = p.position();
+        let rx = ox - self.x;
+        let ry = oy - self.y;
+        let rz = oz - self.z;
+        let fx = G * self.mass() * p.mass() / (rx * rx);
+        let fy = G * self.mass() * p.mass() / (ry * ry);
+        let fz = G * self.mass() * p.mass() / (rz * rz);
+        return Vec3d::new(fx, fy, fz);
+    }
+
     pub fn position(self) -> (f64, f64, f64) {
         return (self.x, self.y, self.z);
     }
@@ -119,5 +132,69 @@ impl Point {
         let y = other.y - self.y;
         let z = other.z - self.z;
         return (x * x + y * y + z * z).sqrt();
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{Point, Vec3d};
+
+    #[test]
+    fn test_distance() {
+        let origin = Point::new(1., 0., 0., 0., Vec3d::new_zero());
+        let p1 = Point::new(1., -1., -2., -2., Vec3d::new(1., 2., 3.));
+        let p2 = Point::new(1., 1., 2., 2., Vec3d::new(1., 2., 3.));
+
+        assert_eq!(origin.distance_to(p2), 3.0);
+        assert_eq!(p1.distance_to(p2), 6.0);
+    }
+
+    #[test]
+    fn test_force() {
+        let origin = Point::new(1., 0., 0., 0., Vec3d::new_zero());
+        let force = Vec3d::new(1.0, 0., 0.);
+        let new_pt = origin.apply_force(1.0, force);
+        let (x, y, z) = new_pt.position();
+        assert_eq!(x, 1.0);
+        assert_eq!(y, 0.0);
+        assert_eq!(z, 0.0);
+    }
+
+    #[test]
+    fn test_magnitude() {
+        let v = Vec3d::new(1.0, 2.0, 3.0);
+        let m = v.magnitude();
+        assert_eq!(m, (14_f64).sqrt());
+    }
+
+    #[test]
+    fn test_vec_operations() {
+        // Multiplication.
+        let v = Vec3d::new(1.0, 2.0, 3.0);
+        let v2 = v * 2.0;
+        let (x, y, z) = v2.position();
+        assert_eq!(x, 2.0);
+        assert_eq!(y, 4.0);
+        assert_eq!(z, 6.0);
+        let v3 = 2.0 * v;
+        let (x, y, z) = v3.position();
+        assert_eq!(x, 2.0);
+        assert_eq!(y, 4.0);
+        assert_eq!(z, 6.0);
+
+        // Division.
+        let v4 = v3 / 2.0;
+        let (x, y, z) = v4.position();
+        assert_eq!(x, 1.0);
+        assert_eq!(y, 2.0);
+        assert_eq!(z, 3.0);
+
+        // Add.
+        let vs = Vec3d::new(-1.0, 0.0, 2.0);
+        let vt = v + vs;
+        let (x, y, z) = vt.position();
+        assert_eq!(x, 0.0);
+        assert_eq!(y, 2.0);
+        assert_eq!(z, 5.0);
     }
 }
