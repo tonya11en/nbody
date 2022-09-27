@@ -4,6 +4,7 @@ pub struct BHTree {
     root: BHNode,
     theta: f64,
     graph_size: f64,
+    points: Vec<Point>,
 }
 
 impl BHTree {
@@ -13,15 +14,23 @@ impl BHTree {
             root: root,
             theta: theta,
             graph_size: graph_size,
+            points: Vec::new(),
         };
     }
 
     fn add_point(&mut self, p: Point) {
+        self.points.push(p);
         self.root.add_point(p);
     }
 
-    fn step(self, dt: f64) -> BHTree {
-        // @tallen calculate the step here...
+    fn next(&self, dt: f64) -> BHTree {
+        let mut bht = BHTree::new(self.theta, self.graph_size);
+        for p in self.points.iter() {
+            let force = self.root.calculate_force(dt, *p);
+            let new_p = p.apply_force(dt, force);
+            bht.add_point(new_p);
+        }
+        return bht;
     }
 }
 
@@ -72,7 +81,7 @@ impl BHNode {
         }
 
         let mut force = Vec3d::new_zero();
-        for child in self.children {
+        for child in self.children.iter() {
             force += child.calculate_force(dt, p);
         }
         return force;
@@ -194,5 +203,17 @@ mod test_bht {
         bht.add_point(pt3);
         let expected = Point::new(3.0, 0., 0., 0., Vec3d::new_zero());
         assert_eq!(bht.root.center_of_mass(), expected);
+    }
+
+    #[test]
+    fn test_step_calculation() {
+        let mut bht = BHTree::new(0.5, 1e10);
+        let pt = Point::new(1.0, 2.0, 2.0, 2.0, Vec3d::new_zero());
+        bht.add_point(pt);
+        let pt = Point::new(1.0, 0.0, 0.0, 0.0, Vec3d::new_zero());
+        bht.add_point(pt);
+
+        let next = bht.next(1.0);
+        next.theta;
     }
 }
