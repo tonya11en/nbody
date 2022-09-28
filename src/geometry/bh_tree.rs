@@ -9,7 +9,6 @@ pub struct BHTree {
 
 impl BHTree {
     pub fn new(theta: f64, graph_size: f64) -> BHTree {
-        dbg!(graph_size);
         return BHTree {
             root: BHNode::new(theta, graph_size, 0., 0., 0.),
             theta: theta,
@@ -48,7 +47,6 @@ pub struct BHNode {
 
 impl BHNode {
     pub fn new(theta: f64, region_size: f64, x: f64, y: f64, z: f64) -> BHNode {
-        dbg!("new node", x, y, z);
         return BHNode {
             theta: theta,
             center_of_mass: Point::new_zero(),
@@ -74,7 +72,7 @@ impl BHNode {
         let ratio = self.region_size / self.center_of_mass().distance_to(p);
         if ratio < self.theta {
             // Sufficiently far away to use this node's COM.
-            return p.force_from(dt, p);
+            return p.force_from(dt, self.center_of_mass());
         }
 
         let mut force = Vec3d::new_zero();
@@ -114,7 +112,7 @@ impl BHNode {
         }
 
         self.add_to_child(p);
-        //dbg!(self.validate());
+        dbg!(self.validate());
     }
 
     fn validate(&self) {
@@ -139,7 +137,6 @@ impl BHNode {
             let xcontains = (child.xloc..(child.xloc + child.region_size)).contains(&x);
             let ycontains = (child.yloc..(child.yloc + child.region_size)).contains(&y);
             let zcontains = (child.zloc..(child.zloc + child.region_size)).contains(&z);
-            dbg!(x, y, z, xcontains, ycontains, zcontains, child.xloc, child.yloc, child.zloc,);
             if !xcontains || !ycontains || !zcontains {
                 continue;
             }
@@ -160,7 +157,6 @@ impl BHNode {
 
         self.children.reserve(8);
         let child_region = self.region_size / 2.0;
-        dbg!(self.region_size, child_region);
         for x in [self.xloc, self.xloc + child_region] {
             for y in [self.yloc, self.yloc + child_region] {
                 for z in [self.zloc, self.zloc + child_region] {
@@ -212,12 +208,13 @@ mod test_bht {
     #[test]
     fn test_step_calculation() {
         let mut bht = BHTree::new(0.5, 5.);
-        let pt = Point::new(1.0, 2.0, 2.0, 2.0, Vec3d::new_zero());
+        let pt = Point::new(1e9, 2.0, 2.0, 2.0, Vec3d::new_zero());
         bht.add_point(pt);
-        let pt = Point::new(1.0, 0.0, 0.0, 0.0, Vec3d::new_zero());
+        let pt = Point::new(1e9, 0.0, 0.0, 0.0, Vec3d::new_zero());
         bht.add_point(pt);
 
-        let next = bht.next(1.0);
-        next.theta;
+        for _ in 1..100 {
+            bht = bht.next(1.0);
+        }
     }
 }

@@ -1,11 +1,26 @@
+use std::fmt::Display;
+
 const G: f64 = 6.67430e-11;
+const C: f64 = 299792458.0;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Vec3d {
-    // Unit vec.
     x: f64,
     y: f64,
     z: f64,
+}
+
+impl Display for Vec3d {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        return write!(
+            f,
+            "{}*({}, {}, {})",
+            self.magnitude(),
+            self.x,
+            self.y,
+            self.z
+        );
+    }
 }
 
 impl Vec3d {
@@ -36,7 +51,7 @@ impl std::ops::AddAssign<Vec3d> for Vec3d {
     fn add_assign(&mut self, rhs: Vec3d) {
         self.x += rhs.x;
         self.y += rhs.y;
-        self.z + rhs.z;
+        self.z += rhs.z;
     }
 }
 
@@ -78,10 +93,17 @@ impl std::ops::Div<f64> for Vec3d {
 pub struct Point {
     mass: f64,
     vel: Vec3d,
+    schwarzchild_radius: f64,
 
     x: f64,
     y: f64,
     z: f64,
+}
+
+impl Display for Point {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        return write!(f, "{} @ ({}, {}, {})", self.vel, self.x, self.y, self.z);
+    }
 }
 
 impl Point {
@@ -92,6 +114,7 @@ impl Point {
             x: x,
             y: y,
             z: z,
+            schwarzchild_radius: 2.0 * G * mass / (C * C),
         };
     }
 
@@ -99,8 +122,16 @@ impl Point {
         return Point::new(0., 0., 0., 0., Vec3d::new_zero());
     }
 
+    pub fn schwarzchild_radius(&self) -> f64 {
+        return self.schwarzchild_radius;
+    }
+
     pub fn mass(&self) -> f64 {
         return self.mass;
+    }
+
+    pub fn velocity(&self) -> Vec3d {
+        return self.vel;
     }
 
     pub fn apply_force(self, dt: f64, force: Vec3d) -> Point {
@@ -117,14 +148,17 @@ impl Point {
     }
 
     pub fn force_from(self, dt: f64, p: Point) -> Vec3d {
-        let (ox, oy, oz) = p.position();
-        let rx = ox - self.x;
-        let ry = oy - self.y;
-        let rz = oz - self.z;
-        let fx = G * self.mass() * p.mass() / (rx * rx);
-        let fy = G * self.mass() * p.mass() / (ry * ry);
-        let fz = G * self.mass() * p.mass() / (rz * rz);
-        return Vec3d::new(fx, fy, fz);
+        let dist = self.distance_to(p);
+        let mass = if dist <= self.schwarzchild_radius() {
+            (self.schwarzchild_radius() - dist) / self.schwarzchild_radius() * self.mass
+        } else {
+            self.mass
+        };
+        let f = G * mass * p.mass() / (dist * dist);
+        let x = (p.x - self.x) / dist * f;
+        let y = (p.y - self.y) / dist * f;
+        let z = (p.z - self.z) / dist * f;
+        return Vec3d::new(x, y, z);
     }
 
     pub fn position(self) -> (f64, f64, f64) {
