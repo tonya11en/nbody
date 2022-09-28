@@ -9,9 +9,9 @@ pub struct BHTree {
 
 impl BHTree {
     pub fn new(theta: f64, graph_size: f64) -> BHTree {
-        let root = BHNode::new(theta, graph_size, 0., 0., 0.);
+        dbg!(graph_size);
         return BHTree {
-            root: root,
+            root: BHNode::new(theta, graph_size, 0., 0., 0.),
             theta: theta,
             graph_size: graph_size,
             points: Vec::new(),
@@ -48,12 +48,10 @@ pub struct BHNode {
 
 impl BHNode {
     pub fn new(theta: f64, region_size: f64, x: f64, y: f64, z: f64) -> BHNode {
-        let r = region_size / 2.;
-        let vel = Vec3d::new_zero();
-        let com = Point::new(0., 0., 0., 0., vel);
+        dbg!("new node", x, y, z);
         return BHNode {
             theta: theta,
-            center_of_mass: com,
+            center_of_mass: Point::new_zero(),
             region_size: region_size,
             xloc: x,
             yloc: y,
@@ -65,7 +63,6 @@ impl BHNode {
     }
 
     fn center_of_mass(&self) -> Point {
-        assert!(self.count > 0);
         return self.center_of_mass;
     }
 
@@ -89,40 +86,35 @@ impl BHNode {
 
     fn add_point(&mut self, p: Point) {
         let (oldx, oldy, oldz) = self.center_of_mass.position();
+        let old_mass = self.center_of_mass.mass();
         let new_mass = self.center_of_mass.mass() + p.mass();
         let (x, y, z) = p.position();
-        let count = self.count as f64;
         self.center_of_mass = Point::new(
             new_mass,
-            (oldx * count + x) / (count + 1.),
-            (oldy * count + y) / (count + 1.),
-            (oldz * count + z) / (count + 1.),
+            (old_mass * oldx + x * p.mass()) / (new_mass),
+            (old_mass * oldy + y * p.mass()) / (new_mass),
+            (old_mass * oldz + z * p.mass()) / (new_mass),
             Vec3d::new_zero(),
         );
 
         self.count += 1;
         if self.count == 1 {
-            dbg!(
-                p.position(),
-                self.region_size,
-                self.xloc,
-                self.yloc,
-                self.zloc,
-            );
             // This is the first point to be inserted into the node, so there's nothing left to do.
             self.point = Some(p);
             return;
-        } else if self.count == 2 {
+        }
+
+        if self.count == 2 && self.children.is_empty() {
             self.split();
             match self.point {
-                Some(p) => self.add_to_child(p),
-                None => panic!("node should have a point residing within"),
+                Some(local_pt) => self.add_to_child(local_pt),
+                None => panic!("inconsistency in node"),
             };
             self.point = None;
         }
 
         self.add_to_child(p);
-        dbg!(self.validate());
+        //dbg!(self.validate());
     }
 
     fn validate(&self) {
@@ -144,10 +136,11 @@ impl BHNode {
 
         let (x, y, z) = p.position();
         for child in self.children.iter_mut() {
-            if !(child.xloc..(child.xloc + child.region_size)).contains(&x)
-                || !(child.yloc..(child.yloc + child.region_size)).contains(&y)
-                || !(child.zloc..(child.zloc + child.region_size)).contains(&z)
-            {
+            let xcontains = (child.xloc..(child.xloc + child.region_size)).contains(&x);
+            let ycontains = (child.yloc..(child.yloc + child.region_size)).contains(&y);
+            let zcontains = (child.zloc..(child.zloc + child.region_size)).contains(&z);
+            dbg!(x, y, z, xcontains, ycontains, zcontains, child.xloc, child.yloc, child.zloc,);
+            if !xcontains || !ycontains || !zcontains {
                 continue;
             }
 
@@ -167,6 +160,7 @@ impl BHNode {
 
         self.children.reserve(8);
         let child_region = self.region_size / 2.0;
+        dbg!(self.region_size, child_region);
         for x in [self.xloc, self.xloc + child_region] {
             for y in [self.yloc, self.yloc + child_region] {
                 for z in [self.zloc, self.zloc + child_region] {
@@ -184,30 +178,40 @@ mod test_bht {
     use crate::geometry::bh_tree::{BHTree, Point, Vec3d};
 
     #[test]
+    fn starts_with_0com() {
+        let bht = BHTree::new(0.5, 1e10);
+        assert_eq!(bht.root.center_of_mass, Point::new_zero());
+    }
+
+    #[test]
     fn test_add_point() {
-        let mut bht = BHTree::new(0.5, 1e10);
-        let pt = Point::new(1.0, 2.0, 2.0, 2.0, Vec3d::new_zero());
-        bht.add_point(pt);
-        assert_eq!(bht.root.xloc, 0.0);
-        assert_eq!(bht.root.yloc, 0.0);
-        assert_eq!(bht.root.zloc, 0.0);
-        assert_eq!(bht.root.zloc, 0.0);
-        assert_eq!(bht.root.center_of_mass(), pt);
+        use rand::{thread_rng, Rng};
+        let mut rng = thread_rng();
+        for _ in 1..100 {
+            let mut bht = BHTree::new(0.5, rng.gen_range(1.0..1337.));
+            let pt = Point::new(1.0, 2.0, 2.0, 2.0, Vec3d::new_zero());
+            bht.add_point(pt);
+            assert_eq!(bht.root.xloc, 0.0);
+            assert_eq!(bht.root.yloc, 0.0);
+            assert_eq!(bht.root.zloc, 0.0);
+            assert_eq!(bht.root.zloc, 0.0);
+            assert_eq!(bht.root.center_of_mass(), pt);
 
-        let pt2 = Point::new(1.0, 0.0, 0.0, 0.0, Vec3d::new_zero());
-        bht.add_point(pt2);
-        let expected = Point::new(2.0, 1., 1., 1., Vec3d::new_zero());
-        assert_eq!(bht.root.center_of_mass(), expected);
+            let pt2 = Point::new(1.0, 0.0, 0.0, 0.0, Vec3d::new_zero());
+            bht.add_point(pt2);
+            let expected = Point::new(2.0, 1., 1., 1., Vec3d::new_zero());
+            assert_eq!(bht.root.center_of_mass(), expected);
 
-        let pt3 = Point::new(1.0, 2.0, 2.0, 2.1, Vec3d::new_zero());
-        bht.add_point(pt3);
-        let expected = Point::new(3.0, 0., 0., 0., Vec3d::new_zero());
-        assert_eq!(bht.root.center_of_mass(), expected);
+            let pt3 = Point::new(2.0, 3.0, 3.0, 3.0, Vec3d::new_zero());
+            bht.add_point(pt3);
+            let expected = Point::new(4.0, 2., 2., 2., Vec3d::new_zero());
+            assert_eq!(bht.root.center_of_mass(), expected);
+        }
     }
 
     #[test]
     fn test_step_calculation() {
-        let mut bht = BHTree::new(0.5, 1e10);
+        let mut bht = BHTree::new(0.5, 5.);
         let pt = Point::new(1.0, 2.0, 2.0, 2.0, Vec3d::new_zero());
         bht.add_point(pt);
         let pt = Point::new(1.0, 0.0, 0.0, 0.0, Vec3d::new_zero());

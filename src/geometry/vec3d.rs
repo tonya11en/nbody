@@ -95,6 +95,10 @@ impl Point {
         };
     }
 
+    pub fn new_zero() -> Point {
+        return Point::new(0., 0., 0., 0., Vec3d::new_zero());
+    }
+
     pub fn mass(&self) -> f64 {
         return self.mass;
     }
