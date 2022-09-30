@@ -1,9 +1,10 @@
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
 const G: f64 = 6.67430e-11;
 const C: f64 = 299792458.0;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Vec3d {
     x: f64,
     y: f64,
@@ -89,7 +90,7 @@ impl std::ops::Div<f64> for Vec3d {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Point {
     mass: f64,
     vel: Vec3d,
@@ -147,10 +148,10 @@ impl Point {
         );
     }
 
-    pub fn force_from(self, dt: f64, p: Point) -> Vec3d {
+    pub fn force_from(self, p: Point) -> Vec3d {
         let dist = self.distance_to(p);
         let mass = if dist <= self.schwarzchild_radius() {
-            (self.schwarzchild_radius() - dist) / self.schwarzchild_radius() * self.mass
+            dist / self.schwarzchild_radius() * self.mass
         } else {
             self.mass
         };
@@ -234,5 +235,14 @@ mod test {
         assert_eq!(x, 0.0);
         assert_eq!(y, 2.0);
         assert_eq!(z, 5.0);
+    }
+
+    #[test]
+    fn test_close_attraction() {
+        let p1 = Point::new(1e30, 2.0, 2.0, 2.0, Vec3d::new_zero());
+        let p2 = Point::new(1e30, 0.0, 0.0, 0.0, Vec3d::new_zero());
+        let p3 = Point::new(1e30, 1.0, 1.0, 1.0, Vec3d::new_zero());
+        dbg!(p1.force_from(p2));
+        dbg!(p1.force_from(p3));
     }
 }
