@@ -1,6 +1,8 @@
+use serde::{Serialize, Deserialize};
 use crate::{Point, Vec3d};
 use log::{info, trace};
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct BHTree {
     root: BHNode,
     theta: f64,
@@ -36,6 +38,7 @@ impl BHTree {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct BHNode {
     theta: f64,
     center_of_mass: Point,
@@ -123,7 +126,7 @@ impl BHNode {
         }
 
         self.add_to_child(p);
-        dbg!(self.validate());
+        //dbg!(self.validate());
     }
 
     fn validate(&self) {
@@ -228,5 +231,18 @@ mod test_bht {
         for _ in 1..100 {
             bht = bht.next(1.0);
         }
+    }
+
+    #[test]
+    fn serdes_test() {
+        let pt = Point::new(1e9, 2.0, 2.0, 2.0, Vec3d::new_zero());
+        let mut bht = BHTree::new(0.5, 5.0);
+        let pt2 = Point::new(1e9, 1.0, 2.0, 1.0, Vec3d::new_zero());
+        bht.add_point(pt);
+        bht.add_point(pt2);
+        let serialized = serde_json::to_string_pretty(&bht).unwrap();
+        let bht2: BHTree = serde_json::from_str(&serialized).unwrap();
+        let rt_serialized = serde_json::to_string_pretty(&bht2).unwrap();
+        assert_eq!(serialized, rt_serialized);
     }
 }

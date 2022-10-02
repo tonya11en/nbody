@@ -8,6 +8,8 @@ edition = "2021"
 [dependencies]
 rand = "*"
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "*"
 sled = { version = "0.34", features = ["io_uring"] }
 vtkio = "*"
 log = { version = "*", features = [ "serde", "std" ] }
+env_logger = "0.9.1"
