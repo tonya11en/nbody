@@ -7,7 +7,7 @@ pub struct DbHandle {
 }
 
 impl DbHandle {
-    fn new(path: String) -> Result<DbHandle, sled::Error> {
+    pub fn new(path: String) -> Result<DbHandle, sled::Error> {
         // TODO: Allow it to pick up where it left off somehow.
         info!("creating dbhandle with path {}", path);
         let dbhandle = DbHandle {
@@ -18,8 +18,8 @@ impl DbHandle {
         return Ok(dbhandle);
     }
 
-    fn persist(&mut self, time: f64, tree: BHTree) -> Result<Option<sled::IVec>, sled::Error> {
-        info!(time = time.to_string(); "persisting tree state");
+    pub fn persist(&mut self, time: f64, tree: &BHTree) -> Result<Option<sled::IVec>, sled::Error> {
+        info!("persisting tree state @ t={}", time);
         let bhts = serde_json::to_vec(&tree).unwrap();
         return self.db.insert(time.to_be_bytes(), bhts);
     }

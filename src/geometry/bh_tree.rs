@@ -1,6 +1,7 @@
-use serde::{Serialize, Deserialize};
-use crate::{Point, Vec3d};
 use log::{info, trace};
+use serde::{Serialize, Deserialize, ser::Error};
+
+use crate::{Point, Vec3d};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BHTree {
@@ -12,7 +13,7 @@ pub struct BHTree {
 
 impl BHTree {
     pub fn new(theta: f64, graph_size: f64) -> BHTree {
-        info!(theta = theta.to_string(), graph_size = graph_size.to_string(); "creating barnes-hut tree");
+        info!(theta = theta, graph_size = graph_size; "creating barnes-hut tree");
         return BHTree {
             root: BHNode::new(theta, graph_size, 0., 0., 0.),
             theta: theta,
@@ -22,7 +23,7 @@ impl BHTree {
     }
 
     pub fn add_point(&mut self, p: Point) {
-        trace!(point = p.to_string(); "adding point");
+        trace!("adding point {}", p);
         self.points.push(p);
         self.root.add_point(p);
     }
@@ -36,6 +37,16 @@ impl BHTree {
         }
         return bht;
     }
+
+    pub fn dump(&self, timestamp: f64, filename: String) {
+        wtr.serialize(self.points).unwrap();
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Row {
+    time: f64,
+    points: Vec<Point>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -54,11 +65,9 @@ pub struct BHNode {
 impl BHNode {
     pub fn new(theta: f64, region_size: f64, x: f64, y: f64, z: f64) -> BHNode {
         trace!(
-            theta = theta.to_string(), 
-            region_size = region_size.to_string(), 
-            x = x.to_string(), 
-            y = y.to_string(), 
-            z = z.to_string(); 
+            theta = theta, 
+            region_size = region_size, 
+            x = x, y = y, z = z; 
             "creating node");
         return BHNode {
             theta: theta,
@@ -107,7 +116,7 @@ impl BHNode {
             (old_mass * oldz + z * p.mass()) / (new_mass),
             Vec3d::new_zero(),
         );
-        trace!(updated_com = self.center_of_mass.to_string(), point = p.to_string(); "adding point");
+        trace!("adding point {}, com updated to {}", p, self.center_of_mass);
 
         self.count += 1;
         if self.count == 1 {
@@ -171,7 +180,7 @@ impl BHNode {
 
         self.children.reserve(8);
         let child_region = self.region_size / 2.0;
-        trace!(child_region = child_region.to_string(); "splitting node");
+        trace!(child_region = child_region; "splitting node");
         for x in [self.xloc, self.xloc + child_region] {
             for y in [self.yloc, self.yloc + child_region] {
                 for z in [self.zloc, self.zloc + child_region] {
