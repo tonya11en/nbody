@@ -1,5 +1,5 @@
 use csv::WriterBuilder;
-use log::info;
+use log::{info, LevelFilter};
 use rand::{thread_rng, Rng};
 
 use crate::geometry::bh_tree::BHTree;
@@ -16,7 +16,6 @@ const SIM_TIME: f64 = 10.0;
 
 fn main() -> Result<(), sled::Error> {
     env_logger::init();
-    let mut dbh = DbHandle::new(String::from("my_db"))?;
     info!(
         theta = THETA, 
         graph_size = GRAPH_SIZE, 
@@ -25,6 +24,7 @@ fn main() -> Result<(), sled::Error> {
         num_points = NUM_POINTS; 
         "starting nbody simulation");
 
+    let mut dbh = DbHandle::new(String::from("my_db"))?;
     let mut rng = thread_rng();
     let mut bht = BHTree::new(THETA, GRAPH_SIZE);
 
@@ -42,8 +42,7 @@ fn main() -> Result<(), sled::Error> {
         .from_path(String::from("/tmp/data.csv"))
         .unwrap();
     while t < SIM_TIME {
-        dbh.persist(t, &bht)?;
-        wtr.serialize(&bht).unwrap();
+        dbh.persist(t, bht);
         t += TIME_STEP;
         bht = bht.next(TIME_STEP);
     }

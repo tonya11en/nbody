@@ -1,5 +1,7 @@
-use log::{info, trace};
-use serde::{Serialize, Deserialize, ser::Error};
+use log::{info, debug, trace};
+use serde::{Serialize, Deserialize};
+use crossbeam_channel::unbounded;
+use rayon::prelude::*;
 
 use crate::{Point, Vec3d};
 
@@ -22,19 +24,37 @@ impl BHTree {
         };
     }
 
+    pub fn points(self) -> Vec<Point> {
+        return self.points;
+    }
+
     pub fn add_point(&mut self, p: Point) {
         trace!("adding point {}", p);
         self.points.push(p);
         self.root.add_point(p);
     }
 
-    pub fn next(&self, dt: f64) -> BHTree {
+    pub fn next(self, dt: f64) -> BHTree {
+        debug!("creating next bht...");
         let mut bht = BHTree::new(self.theta, self.graph_size);
-        for p in self.points.iter() {
-            let force = self.root.calculate_force(dt, *p);
-            let new_p = p.apply_force(dt, force);
-            bht.add_point(new_p);
+
+        let (tx, rx) = unbounded();
+
+        debug!("creating new point set");
+        self.points
+            .par_iter()
+            .for_each(|p| {
+                let force = self.root.calculate_force(dt, *p);
+                let new_p = p.apply_force(dt, force);
+                tx.clone().send(new_p).unwrap();
+            });
+
+        debug!("adding points to new bht");
+        for _ in (0..self.points.len()) {
+            let p = rx.recv().unwrap();
+            bht.add_point(p);
         }
+
         return bht;
     }
 }

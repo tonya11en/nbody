@@ -11,6 +11,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "*"
 sled = { version = "0.34", features = ["io_uring"] }
 vtkio = "*"
-log = { version = "*", features = [ "serde", "std", "kv_unstable"] }
+log = { version = "*", features = [ "serde", "std", "kv_unstable", "max_level_debug", "release_max_level_info"] }
 env_logger = "0.9.1"
 csv = "1.1.6"
+crossbeam-channel = "0.5.6"
+rayon = "1.5.3"

@@ -1,5 +1,6 @@
 use crate::geometry::bh_tree::BHTree;
 use log::{info, trace, warn};
+use rayon::prelude::*;
 use sled::{Db, Error};
 
 pub struct DbHandle {
@@ -18,9 +19,12 @@ impl DbHandle {
         return Ok(dbhandle);
     }
 
-    pub fn persist(&mut self, time: f64, tree: &BHTree) -> Result<Option<sled::IVec>, sled::Error> {
+    pub fn persist(&self, time: f64, tree: BHTree) {
         info!("persisting tree state @ t={}", time);
-        let bhts = serde_json::to_vec(&tree).unwrap();
-        return self.db.insert(time.to_be_bytes(), bhts);
+        tree.points().par_iter().for_each(|p| {
+            self.db
+                .insert(time.to_be_bytes(), p.to_string().as_bytes())
+                .unwrap();
+        });
     }
 }
