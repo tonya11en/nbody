@@ -37,10 +37,6 @@ impl BHTree {
         }
         return bht;
     }
-
-    pub fn dump(&self, timestamp: f64, filename: String) {
-        wtr.serialize(self.points).unwrap();
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]

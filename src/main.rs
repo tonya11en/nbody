@@ -1,4 +1,5 @@
-use log::{debug, error, info, warn};
+use csv::WriterBuilder;
+use log::info;
 use rand::{thread_rng, Rng};
 
 use crate::geometry::bh_tree::BHTree;
@@ -9,8 +10,8 @@ pub mod geometry;
 
 const THETA: f64 = 0.5;
 const GRAPH_SIZE: f64 = 1e6;
-const NUM_POINTS: u64 = 1000;
-const TIME_STEP: f64 = 0.1;
+const NUM_POINTS: u64 = 1000000;
+const TIME_STEP: f64 = 1.1;
 const SIM_TIME: f64 = 10.0;
 
 fn main() -> Result<(), sled::Error> {
@@ -38,11 +39,11 @@ fn main() -> Result<(), sled::Error> {
     let mut t: f64 = 0.;
     let mut wtr = WriterBuilder::new()
         .has_headers(false)
-        .from_path(filename)
+        .from_path(String::from("/tmp/data.csv"))
         .unwrap();
     while t < SIM_TIME {
         dbh.persist(t, &bht)?;
-        bht.dump(t, String::from("/tmp/data.csv"));
+        wtr.serialize(&bht).unwrap();
         t += TIME_STEP;
         bht = bht.next(TIME_STEP);
     }
