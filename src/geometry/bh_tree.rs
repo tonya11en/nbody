@@ -1,9 +1,8 @@
 use std::error::Error;
 
-use log::{info, debug, trace, warn};
-use serde::{Serialize, Deserialize};
-use crossbeam_channel::unbounded;
+use log::{debug, info, trace, warn};
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::{Point, Vec3d};
 
@@ -38,11 +37,20 @@ impl BHTree {
 
     pub fn next(&self, dt: f64) -> BHTree {
         debug!("creating next bht...");
-        let (tx, rx) = unbounded();
+
+        debug!("creating new point set");
+        let new_points_iter: Vec<_> = self
+            .points
+            .par_iter()
+            .map(|p| {
+                let force = self.root.calculate_force(dt, *p);
+                return p.apply_force(dt, force);
+            })
+            .collect();
 
         let mut min_dim = f64::MAX;
         let mut max_dim = f64::MIN;
-        for p in self.points.iter() {
+        for p in &new_points_iter {
             let (x, y, z) = p.position();
             min_dim = x.min(min_dim);
             max_dim = x.max(max_dim);
@@ -51,22 +59,13 @@ impl BHTree {
             min_dim = z.min(min_dim);
             max_dim = z.max(max_dim);
         }
+        max_dim += 1.;
+        min_dim -= 1.;
 
         let graph_size = max_dim - min_dim;
         let mut bht = BHTree::new(self.theta, graph_size, min_dim, min_dim, min_dim);
 
-        debug!("creating new point set");
-        self.points
-            .par_iter()
-            .for_each(|p| {
-                let force = self.root.calculate_force(dt, *p);
-                let new_p = p.apply_force(dt, force);
-                tx.clone().send(new_p).unwrap();
-            });
-
-        debug!("adding points to new bht");
-        for _ in 0..self.points.len() {
-            let p = rx.recv().unwrap();
+        for p in new_points_iter {
             bht.add_point(p);
         }
 
@@ -112,10 +111,12 @@ pub struct BHNode {
 impl BHNode {
     pub fn new(theta: f64, region_size: f64, x: f64, y: f64, z: f64) -> BHNode {
         trace!(
-            theta = theta, 
-            region_size = region_size, 
-            x = x, y = y, z = z; 
-            "creating node");
+            "creating node {}, {}, {} // region size {}",
+            x,
+            y,
+            z,
+            region_size,
+        );
         return BHNode {
             theta: theta,
             center_of_mass: Point::new_zero(),
@@ -163,7 +164,7 @@ impl BHNode {
             (old_mass * oldz + z * p.mass()) / (new_mass),
             Vec3d::new_zero(),
         );
-        trace!("adding point {}, com updated to {}", p, self.center_of_mass);
+        trace!("COM updated to {}", self.center_of_mass);
 
         self.count += 1;
         if self.count == 1 {

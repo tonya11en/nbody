@@ -10,7 +10,7 @@ rand = "*"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "*"
 sled = { version = "0.34", features = ["io_uring"] }
-log = { version = "*", features = [ "serde", "std", "kv_unstable", "max_level_debug", "release_max_level_info"] }
+log = { version = "*", features = [ "serde", "std", "kv_unstable", "max_level_trace", "release_max_level_info"] }
 env_logger = "0.9.1"
 csv = "1.1.6"
 crossbeam-channel = "0.5.6"
