@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "starting nbody simulation");
 
     let mut rng = thread_rng();
-    let mut bht = BHTree::new(THETA, GRAPH_SIZE);
+    let mut bht = BHTree::new(THETA, GRAPH_SIZE, 0., 0., 0.);
 
     for _ in 0..NUM_POINTS {
         let x: f64 = rng.gen_range(0.0..GRAPH_SIZE);

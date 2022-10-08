@@ -16,10 +16,10 @@ pub struct BHTree {
 }
 
 impl BHTree {
-    pub fn new(theta: f64, graph_size: f64) -> BHTree {
+    pub fn new(theta: f64, graph_size: f64, x: f64, y: f64, z: f64) -> BHTree {
         info!(theta = theta, graph_size = graph_size; "creating barnes-hut tree");
         return BHTree {
-            root: BHNode::new(theta, graph_size, 0., 0., 0.),
+            root: BHNode::new(theta, graph_size, x, y, z),
             theta: theta,
             graph_size: graph_size,
             points: Vec::new(),
@@ -38,9 +38,22 @@ impl BHTree {
 
     pub fn next(&self, dt: f64) -> BHTree {
         debug!("creating next bht...");
-        let mut bht = BHTree::new(self.theta, self.graph_size);
-
         let (tx, rx) = unbounded();
+
+        let mut min_dim = f64::MAX;
+        let mut max_dim = f64::MIN;
+        for p in self.points.iter() {
+            let (x, y, z) = p.position();
+            min_dim = x.min(min_dim);
+            max_dim = x.max(max_dim);
+            min_dim = y.min(min_dim);
+            max_dim = y.max(max_dim);
+            min_dim = z.min(min_dim);
+            max_dim = z.max(max_dim);
+        }
+
+        let graph_size = max_dim - min_dim;
+        let mut bht = BHTree::new(self.theta, graph_size, min_dim, min_dim, min_dim);
 
         debug!("creating new point set");
         self.points
@@ -52,7 +65,7 @@ impl BHTree {
             });
 
         debug!("adding points to new bht");
-        for _ in (0..self.points.len()) {
+        for _ in 0..self.points.len() {
             let p = rx.recv().unwrap();
             bht.add_point(p);
         }
@@ -171,19 +184,6 @@ impl BHNode {
         self.add_to_child(p);
     }
 
-    fn validate(&self) {
-        if self.children.is_empty() {
-            let c1 = self.count == 0 && self.point == None;
-            let c2 = self.count == 1;
-            assert!(c1 || c2);
-        } else {
-            assert_eq!(self.point, None);
-            for child in self.children.iter() {
-                child.validate();
-            }
-        }
-    }
-
     fn add_to_child(&mut self, p: Point) {
         // There must be children if trying to add a point to one of them.
         debug_assert!(!self.children.is_empty());
@@ -232,7 +232,7 @@ mod test_bht {
 
     #[test]
     fn starts_with_0com() {
-        let bht = BHTree::new(0.5, 1e10);
+        let bht = BHTree::new(0.5, 1e10, 0., 0., 0.);
         assert_eq!(bht.root.center_of_mass, Point::new_zero());
     }
 
@@ -241,7 +241,7 @@ mod test_bht {
         use rand::{thread_rng, Rng};
         let mut rng = thread_rng();
         for i in 1..100 {
-            let mut bht = BHTree::new(1.0 / (i as f64), rng.gen_range(1.0..1337.));
+            let mut bht = BHTree::new(1.0 / (i as f64), rng.gen_range(1.0..1337.), 0., 0., 0.);
             let pt = Point::new(1.0, 2.0, 2.0, 2.0, Vec3d::new_zero());
             bht.add_point(pt);
             assert_eq!(bht.root.xloc, 0.0);
@@ -264,7 +264,7 @@ mod test_bht {
 
     #[test]
     fn test_step_calculation() {
-        let mut bht = BHTree::new(0.5, 5.);
+        let mut bht = BHTree::new(0.5, 5., 0., 0., 0.);
         let pt = Point::new(1e9, 2.0, 2.0, 2.0, Vec3d::new_zero());
         bht.add_point(pt);
         let pt = Point::new(1e9, 0.0, 0.0, 0.0, Vec3d::new_zero());
@@ -278,7 +278,7 @@ mod test_bht {
     #[test]
     fn serdes_test() {
         let pt = Point::new(1e9, 2.0, 2.0, 2.0, Vec3d::new_zero());
-        let mut bht = BHTree::new(0.5, 5.0);
+        let mut bht = BHTree::new(0.5, 5.0, 0., 0., 0.);
         let pt2 = Point::new(1e9, 1.0, 2.0, 1.0, Vec3d::new_zero());
         bht.add_point(pt);
         bht.add_point(pt2);

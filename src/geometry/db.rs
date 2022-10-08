@@ -1,7 +1,7 @@
 use crate::geometry::bh_tree::BHTree;
-use log::{info, trace, warn};
+use log::info;
 use rayon::prelude::*;
-use sled::{Db, Error};
+use sled::Db;
 
 pub struct DbHandle {
     db: Db,
