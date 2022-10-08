@@ -1,4 +1,6 @@
-use log::{info, debug, trace};
+use std::error::Error;
+
+use log::{info, debug, trace, warn};
 use serde::{Serialize, Deserialize};
 use crossbeam_channel::unbounded;
 use rayon::prelude::*;
@@ -34,7 +36,7 @@ impl BHTree {
         self.root.add_point(p);
     }
 
-    pub fn next(self, dt: f64) -> BHTree {
+    pub fn next(&self, dt: f64) -> BHTree {
         debug!("creating next bht...");
         let mut bht = BHTree::new(self.theta, self.graph_size);
 
@@ -56,6 +58,22 @@ impl BHTree {
         }
 
         return bht;
+    }
+
+    pub fn write_to_csv(&self, filename: String) -> Result<(), Box<dyn Error>> {
+        info!("writing bht to file: {}", filename);
+        let mut wtr = csv::Writer::from_path(filename)?;
+        wtr.write_record(&["mass", "x_pos", "y_pos", "z_pos", "x_vel", "y_vel", "z_vel"])?;
+
+        for p in self.points.iter() {
+            let (x, y, z) = p.position();
+            let mass = p.mass();
+            let (xv, yv, zv) = p.velocity().position();
+            let record = [mass, x, y, z, xv, yv, zv].map(|val| val.to_string());
+            wtr.write_record(&record)?;
+        }
+
+        Ok(wtr.flush()?)
     }
 }
 
@@ -151,7 +169,6 @@ impl BHNode {
         }
 
         self.add_to_child(p);
-        //dbg!(self.validate());
     }
 
     fn validate(&self) {
@@ -184,7 +201,7 @@ impl BHNode {
             return;
         }
 
-        panic!(
+        warn!(
             "point {:?} not contained in any children within range starting @ ({},{},{}) with region size {}",
             p, self.xloc,self.yloc,self.zloc,   self.region_size,
         );

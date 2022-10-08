@@ -150,8 +150,8 @@ impl Point {
 
     pub fn force_from(self, p: Point) -> Vec3d {
         let dist = self.distance_to(p);
-        let mass = if dist <= self.schwarzchild_radius() {
-            dist / self.schwarzchild_radius() * self.mass
+        let mass: f64 = if dist <= self.schwarzchild_radius() {
+            0.
         } else {
             self.mass
         };
