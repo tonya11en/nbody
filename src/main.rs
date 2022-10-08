@@ -13,7 +13,7 @@ const GRAPH_SIZE: f64 = 10000.;
 const NUM_POINTS: u64 = 10000;
 const TIME_STEP: f64 = 1.;
 const STEPS: i32 = 10000;
-const PARTICLE_MASS: f64 = 1e10;
+const PARTICLE_MASS: f64 = 5e10;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -42,6 +42,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let x: f64 = r * theta.sin() * phi.cos();
         let y: f64 = r * theta.sin() * phi.sin();
         let z: f64 = r * (theta.cos());
+
         let p = Point::new(PARTICLE_MASS, x, y, z, Vec3d::new_zero());
         bht.add_point(p);
     }
