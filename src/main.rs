@@ -8,11 +8,11 @@ use crate::geometry::vec3d::{Point, Vec3d};
 
 pub mod geometry;
 
-const THETA: f64 = 0.4;
-const GRAPH_SIZE: f64 = 10000.;
-const NUM_POINTS: u64 = 10000;
-const TIME_STEP: f64 = 1.;
-const STEPS: i32 = 10000;
+const THETA: f64 = 0.5;
+const GRAPH_SIZE: f64 = 1000.;
+const NUM_POINTS: u64 = 50000;
+const TIME_STEP: f64 = 0.75;
+const STEPS: i32 = 1000;
 const PARTICLE_MASS: f64 = 5e10;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -35,17 +35,38 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     for _ in 0..NUM_POINTS {
-        let theta = rng.gen_range(0.0..(2.0 * (std::f64::consts::PI)));
-        let phi = rng.gen_range(0.0..(2.0 * (std::f64::consts::PI)));
-        let r = rng.gen_range(0.0..GRAPH_SIZE);
+        let mut x: f64 = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
+        let mut y: f64 = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
+        let mut z: f64 = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
+        while (x * x + y * y + z * z).sqrt() > GRAPH_SIZE {
+            x = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
+            y = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
+            z = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
+        }
 
-        let x: f64 = r * theta.sin() * phi.cos();
-        let y: f64 = r * theta.sin() * phi.sin();
-        let z: f64 = r * (theta.cos());
+        let mass_delta: f64 = rng.gen_range(0.0..(100. * PARTICLE_MASS));
 
-        let p = Point::new(PARTICLE_MASS, x, y, z, Vec3d::new_zero());
+        let vx = y.cbrt();
+        let vy = -x.cbrt();
+        let vz = rng.gen_range(-1.0..1.);
+
+        let p = Point::new(PARTICLE_MASS + mass_delta, x, y, z, Vec3d::new(vx, vy, vz));
         bht.add_point(p);
     }
+
+    /*
+    bht.add_point(Point::new(
+        PARTICLE_MASS * 100.,
+        0.,
+        0.,
+        0.,
+        Vec3d::new(
+            100. * rng.gen_range(-1.0..1.),
+            100. * rng.gen_range(-1.0..1.),
+            100. * rng.gen_range(-1.0..1.),
+        ),
+    ));
+    */
 
     for t in 0..STEPS {
         let filepath = String::from(format!("output/out-{}.csv", t));
