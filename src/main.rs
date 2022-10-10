@@ -11,8 +11,8 @@ pub mod geometry;
 const THETA: f64 = 0.5;
 const GRAPH_SIZE: f64 = 1000.;
 const NUM_POINTS: u64 = 50000;
-const TIME_STEP: f64 = 0.75;
-const STEPS: i32 = 1000;
+const TIME_STEP: f64 = 1.05;
+const STEPS: i32 = 100;
 const PARTICLE_MASS: f64 = 5e10;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             z = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
         }
 
-        let mass_delta: f64 = rng.gen_range(0.0..(100. * PARTICLE_MASS));
+        let mass_delta: f64 = rng.gen_range(0.0..(10. * PARTICLE_MASS));
 
         let vx = y.cbrt();
         let vy = -x.cbrt();
