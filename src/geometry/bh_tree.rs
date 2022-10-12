@@ -11,7 +11,6 @@ pub struct BHTree {
     root: BHNode,
     theta: f64,
     graph_size: f64,
-    points: Vec<Point>,
 }
 
 impl BHTree {
@@ -21,17 +20,11 @@ impl BHTree {
             root: BHNode::new(theta, graph_size, x, y, z),
             theta: theta,
             graph_size: graph_size,
-            points: Vec::new(),
         };
-    }
-
-    pub fn points(self) -> Vec<Point> {
-        return self.points;
     }
 
     pub fn add_point(&mut self, p: Point) {
         trace!("adding point {}", p);
-        self.points.push(p);
         self.root.add_point(p);
     }
 
@@ -40,7 +33,8 @@ impl BHTree {
 
         debug!("creating new point set");
         let new_points_iter: Vec<_> = self
-            .points
+            .root
+            .get_points()
             .par_iter()
             .map(|p| {
                 let force = self.root.calculate_force(dt, *p);
@@ -72,42 +66,12 @@ impl BHTree {
         return bht;
     }
 
-    fn do_merge_points(&self, points: &Vec<Point>) -> Vec<Point> {
-        let mut retv: Vec<Point> = vec![];
-        let mut added_idx: Vec<bool> = Vec::new();
-        added_idx.resize(points.len(), false);
-
-        for i in 0..points.len() {
-            if added_idx[i] {
-                continue;
-            }
-
-            let mut p1 = points[i];
-            for j in (i + 1)..points.len() {
-                if added_idx[j] {
-                    continue;
-                }
-
-                let p2 = points[j];
-                if should_merge(p1, p2) {
-                    dbg!(should_merge(p1, p2));
-                    p1 = merge_points(p1, p2);
-                    added_idx[i] = true;
-                    added_idx[j] = true;
-                }
-            }
-
-            retv.push(p1);
-        }
-        return retv;
-    }
-
     pub fn write_to_csv(&self, filename: String) -> Result<(), Box<dyn Error>> {
         info!("writing bht to file: {}", filename);
         let mut wtr = csv::Writer::from_path(filename)?;
         wtr.write_record(&["mass", "x_pos", "y_pos", "z_pos", "x_vel", "y_vel", "z_vel"])?;
 
-        for p in self.do_merge_points(&self.points).iter() {
+        for p in self.root.get_points().iter() {
             let (x, y, z) = p.position();
             let mass = p.mass();
             let (xv, yv, zv) = p.velocity().position();
@@ -121,7 +85,6 @@ impl BHTree {
 
 fn should_merge(p1: Point, p2: Point) -> bool {
     let dist = p1.distance_to(p2);
-    dbg!(dist);
     return (dist <= p1.schwarzchild_radius()) || (dist <= p2.schwarzchild_radius());
 }
 
@@ -223,6 +186,12 @@ impl BHNode {
         }
 
         if self.count == 2 && self.children.is_empty() {
+            if should_merge(self.point.unwrap(), p) {
+                self.point = Some(self.center_of_mass);
+                self.count -= 1;
+                return;
+            }
+
             self.split();
             match self.point {
                 Some(local_pt) => self.add_to_child(local_pt),
@@ -273,6 +242,22 @@ impl BHNode {
             }
         }
         debug_assert_eq!(self.children.len(), 8);
+    }
+
+    fn get_points(&self) -> Vec<Point> {
+        if self.children.is_empty() {
+            return vec![self.point.expect("point")];
+        }
+
+        // We're dealing with a branch node.
+        let mut v: Vec<Point> = Vec::new();
+        for c in self.children.iter() {
+            if c.count > 0 {
+                v.append(&mut c.get_points());
+            }
+        }
+
+        return v;
     }
 }
 
@@ -340,34 +325,10 @@ mod test_bht {
 
     #[test]
     fn merge_test() {
-        let bht = BHTree::new(0.5, 5., 0., 0., 0.);
-        let v = vec![
-            Point::new(1., 0., 0., 0., Vec3d::new_zero()),
-            Point::new(1., 1., 0., 0., Vec3d::new_zero()),
-            Point::new(1., 0., 1., 0., Vec3d::new_zero()),
-        ];
+        let mut bht = BHTree::new(0.5, 5., 0., 0., 0.);
 
-        let vo = bht.do_merge_points(&v);
-        assert_eq!(v, vo);
-
-        let v = vec![
-            Point::new(1e99, 0., 0., 0., Vec3d::new_zero()),
-            Point::new(1e99, 1., 0., 0., Vec3d::new_zero()),
-            Point::new(1e99, 0., 1., 0., Vec3d::new_zero()),
-        ];
-        let vo = bht.do_merge_points(&v);
-        assert_eq!(vo.len(), 1);
-        // Can't compare floats directly.
-        assert!(vo[0].mass() - 3e99 < 1e-3);
-
-        let v = vec![
-            Point::new(1e99, 0., 0., 0., Vec3d::new_zero()),
-            Point::new(1e99, 1., 0., 0., Vec3d::new_zero()),
-            Point::new(1e99, 1e99, 1., 0., Vec3d::new_zero()),
-        ];
-        let vo = bht.do_merge_points(&v);
-        assert_eq!(vo.len(), 2);
-        // Can't compare floats directly.
-        assert!(vo[0].mass() - 2e99 < 1e-3);
+        assert_eq!(bht.root.count, 0);
+        bht.add_point(Point::new(1., 0., 0., 0., Vec3d::new_zero()));
+        assert_eq!(bht.root.count, 1);
     }
 }

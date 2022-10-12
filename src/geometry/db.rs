@@ -1,3 +1,4 @@
+/*
 use crate::geometry::bh_tree::BHTree;
 use log::info;
 use rayon::prelude::*;
@@ -28,3 +29,4 @@ impl DbHandle {
         });
     }
 }
+*/
