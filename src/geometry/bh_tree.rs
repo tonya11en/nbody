@@ -157,12 +157,14 @@ impl BHNode {
         let old_mass = self.center_of_mass.mass();
         let new_mass = self.center_of_mass.mass() + p.mass();
         let (x, y, z) = p.position();
+        let new_vel =
+            ((self.center_of_mass.velocity() * old_mass) + (p.mass() * p.velocity())) / new_mass;
         self.center_of_mass = Point::new(
             new_mass,
             (old_mass * oldx + x * p.mass()) / (new_mass),
             (old_mass * oldy + y * p.mass()) / (new_mass),
             (old_mass * oldz + z * p.mass()) / (new_mass),
-            Vec3d::new_zero(),
+            new_vel,
         );
         trace!("COM updated to {}", self.center_of_mass);
 

@@ -10,11 +10,11 @@ use crate::geometry::vec3d::{Point, Vec3d};
 pub mod geometry;
 
 const THETA: f64 = 0.5;
-const GRAPH_SIZE: f64 = 10000.;
-const NUM_POINTS: u64 = 50000;
-const TIME_STEP: f64 = 1.0;
+const GRAPH_SIZE: f64 = 100.;
+const NUM_POINTS: u64 = 500000;
+const TIME_STEP: f64 = 0.01;
 const STEPS: i32 = 10000;
-const PARTICLE_MASS_MEAN: f64 = 5e10;
+const PARTICLE_MASS_MEAN: f64 = 5e9;
 const PARTICLE_MASS_STDDEV: f64 = 5e10;
 
 fn main() -> Result<(), Box<dyn Error>> {
