@@ -32,7 +32,7 @@ impl BHTree {
     pub fn next(&self, dt: f64) -> BHTree {
         debug!("creating next bht...");
 
-        debug!("creating new point set");
+        info!("creating new point set");
         let new_points_iter: Vec<_> = self
             .root
             .get_points()
@@ -60,9 +60,11 @@ impl BHTree {
         let graph_size = max_dim - min_dim;
         let mut bht = BHTree::new(self.theta, graph_size, min_dim, min_dim, min_dim);
 
+        info!("adding {} points to bht", new_points_iter.len());
         for p in new_points_iter {
             bht.add_point(p);
         }
+        info!("done adding points to bht");
 
         return bht;
     }

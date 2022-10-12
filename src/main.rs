@@ -39,7 +39,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let normal = Normal::new(MASS_DIST_MEAN, MASS_DIST_STDDEV).unwrap();
 
-    for _ in 0..NUM_POINTS {
+    info!("generating {} particles", n);
+    for n in 0..NUM_POINTS {
         let mut x: f64 = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
         let mut y: f64 = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
         let mut z: f64 = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
@@ -55,6 +56,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     for t in 0..STEPS {
+        info!("starting step {}", t);
         let filepath = String::from(format!("output/out-{}.csv", t));
         bht.write_to_csv(filepath)?;
         bht = bht.next(TIME_STEP);
