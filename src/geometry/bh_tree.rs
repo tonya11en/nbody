@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::thread;
 
 use log::{debug, info, trace, warn};
 use rayon::prelude::*;
@@ -68,18 +69,27 @@ impl BHTree {
 
     pub fn write_to_csv(&self, filename: String) -> Result<(), Box<dyn Error>> {
         info!("writing bht to file: {}", filename);
-        let mut wtr = csv::Writer::from_path(filename)?;
+        let mut wtr = csv::Writer::from_path(filename.clone())?;
         wtr.write_record(&["mass", "x_pos", "y_pos", "z_pos", "x_vel", "y_vel", "z_vel"])?;
 
+        let mut record_v: Vec<[String; 7]> = vec![];
         for p in self.root.get_points().iter() {
             let (x, y, z) = p.position();
             let mass = p.mass();
             let (xv, yv, zv) = p.velocity().position();
-            let record = [mass, x, y, z, xv, yv, zv].map(|val| val.to_string());
-            wtr.write_record(&record)?;
+            record_v.push([mass, x, y, z, xv, yv, zv].map(|val| val.to_string()));
         }
 
-        Ok(wtr.flush()?)
+        thread::spawn(move || {
+            info!("flushing {}", filename.clone());
+            for record in record_v.iter() {
+                wtr.write_record(record).unwrap();
+            }
+            wtr.flush().unwrap();
+            info!("done flushing {}", filename);
+        });
+
+        Ok(())
     }
 }
 
@@ -159,6 +169,7 @@ impl BHNode {
         let (x, y, z) = p.position();
         let new_vel =
             ((self.center_of_mass.velocity() * old_mass) + (p.mass() * p.velocity())) / new_mass;
+        // @tallen this is likely wrong.
         self.center_of_mass = Point::new(
             new_mass,
             (old_mass * oldx + x * p.mass()) / (new_mass),

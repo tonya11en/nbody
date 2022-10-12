@@ -12,10 +12,11 @@ pub mod geometry;
 const THETA: f64 = 0.5;
 const GRAPH_SIZE: f64 = 100.;
 const NUM_POINTS: u64 = 500000;
-const TIME_STEP: f64 = 0.01;
+const TIME_STEP: f64 = 0.05;
 const STEPS: i32 = 10000;
-const PARTICLE_MASS_MEAN: f64 = 5e9;
-const PARTICLE_MASS_STDDEV: f64 = 5e10;
+const PARTICLE_MASS_BASE: f64 = 1e10;
+const MASS_DIST_MEAN: f64 = 1.0;
+const MASS_DIST_STDDEV: f64 = 0.1;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -36,7 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         -GRAPH_SIZE,
     );
 
-    let normal = Normal::new(PARTICLE_MASS_MEAN, PARTICLE_MASS_STDDEV).unwrap();
+    let normal = Normal::new(MASS_DIST_MEAN, MASS_DIST_STDDEV).unwrap();
 
     for _ in 0..NUM_POINTS {
         let mut x: f64 = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
@@ -48,7 +49,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             z = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
         }
 
-        let mass = normal.sample(&mut rand::thread_rng());
+        let mass = PARTICLE_MASS_BASE.powf(normal.sample(&mut rand::thread_rng()).max(1.0));
         let p = Point::new(mass, x, y, z, Vec3d::new_zero());
         bht.add_point(p);
     }

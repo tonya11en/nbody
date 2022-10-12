@@ -109,6 +109,10 @@ impl Display for Point {
 
 impl Point {
     pub fn new(mass: f64, x: f64, y: f64, z: f64, velocity: Vec3d) -> Point {
+        if mass <= 0.0 {
+            println!("FAILED MASS {}", mass);
+            assert!(false);
+        }
         return Point {
             mass: mass,
             vel: velocity,
@@ -120,7 +124,7 @@ impl Point {
     }
 
     pub fn new_zero() -> Point {
-        return Point::new(0., 0., 0., 0., Vec3d::new_zero());
+        return Point::new(1.0, 0., 0., 0., Vec3d::new_zero());
     }
 
     pub fn schwarzchild_radius(&self) -> f64 {
