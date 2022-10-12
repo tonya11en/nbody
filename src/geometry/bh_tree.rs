@@ -88,19 +88,6 @@ fn should_merge(p1: Point, p2: Point) -> bool {
     return (dist <= p1.schwarzchild_radius()) || (dist <= p2.schwarzchild_radius());
 }
 
-fn merge_points(p1: Point, p2: Point) -> Point {
-    debug!("merging points {} and {}", p1, p2);
-    let (x1, y1, z1) = p1.position();
-    let (x2, y2, z2) = p2.position();
-    return Point::new(
-        p1.mass() + p2.mass(),
-        (x1 + x2) / 2.,
-        (y1 + y2) / 2.,
-        (z1 + z2) / 2.,
-        p1.velocity() + p2.velocity(),
-    );
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 struct Row {
     time: f64,
@@ -112,7 +99,7 @@ pub struct BHNode {
     theta: f64,
     center_of_mass: Point,
     point: Option<Point>,
-    count: usize,
+    count: i32,
     region_size: f64,
     xloc: f64,
     yloc: f64,
@@ -164,7 +151,8 @@ impl BHNode {
         return force;
     }
 
-    fn add_point(&mut self, p: Point) {
+    // Returns the delta on the count.
+    fn add_point(&mut self, p: Point) -> i32 {
         let (oldx, oldy, oldz) = self.center_of_mass.position();
         let old_mass = self.center_of_mass.mass();
         let new_mass = self.center_of_mass.mass() + p.mass();
@@ -179,17 +167,18 @@ impl BHNode {
         trace!("COM updated to {}", self.center_of_mass);
 
         self.count += 1;
+
         if self.count == 1 {
             // This is the first point to be inserted into the node, so there's nothing left to do.
             self.point = Some(p);
-            return;
+            return 0;
         }
 
         if self.count == 2 && self.children.is_empty() {
             if should_merge(self.point.unwrap(), p) {
                 self.point = Some(self.center_of_mass);
                 self.count -= 1;
-                return;
+                return -1;
             }
 
             self.split();
@@ -201,9 +190,12 @@ impl BHNode {
         }
 
         self.add_to_child(p);
+        self.count = 0;
+        self.children.iter().for_each(|x| self.count += x.count);
+        return 0;
     }
 
-    fn add_to_child(&mut self, p: Point) {
+    fn add_to_child(&mut self, p: Point) -> i32 {
         // There must be children if trying to add a point to one of them.
         debug_assert!(!self.children.is_empty());
 
@@ -216,14 +208,14 @@ impl BHNode {
                 continue;
             }
 
-            child.add_point(p);
-            return;
+            return child.add_point(p);
         }
 
         warn!(
             "point {:?} not contained in any children within range starting @ ({},{},{}) with region size {}",
             p, self.xloc,self.yloc,self.zloc,   self.region_size,
         );
+        return 0;
     }
 
     fn split(&mut self) {
@@ -232,7 +224,6 @@ impl BHNode {
 
         self.children.reserve(8);
         let child_region = self.region_size / 2.0;
-        trace!(child_region = child_region; "splitting node");
         for x in [self.xloc, self.xloc + child_region] {
             for y in [self.yloc, self.yloc + child_region] {
                 for z in [self.zloc, self.zloc + child_region] {
@@ -330,5 +321,14 @@ mod test_bht {
         assert_eq!(bht.root.count, 0);
         bht.add_point(Point::new(1., 0., 0., 0., Vec3d::new_zero()));
         assert_eq!(bht.root.count, 1);
+        bht.add_point(Point::new(1., 1., 0., 0., Vec3d::new_zero()));
+        assert_eq!(bht.root.count, 2);
+
+        bht.add_point(Point::new(1e99, 1., 1., 0., Vec3d::new_zero()));
+        assert_eq!(bht.root.count, 3);
+
+        // This should merge everything into a single node.
+        let next = bht.next(1.);
+        assert_eq!(next.root.count, 1, "wtf");
     }
 }
