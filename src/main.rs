@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let normal = Normal::new(MASS_DIST_MEAN, MASS_DIST_STDDEV).unwrap();
 
-    info!("generating {} particles", n);
+    info!("generating {} particles", NUM_POINTS);
     for n in 0..NUM_POINTS {
         let mut x: f64 = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
         let mut y: f64 = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
