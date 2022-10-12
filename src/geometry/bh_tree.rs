@@ -72,12 +72,42 @@ impl BHTree {
         return bht;
     }
 
+    fn do_merge_points(&self, points: &Vec<Point>) -> Vec<Point> {
+        let mut retv: Vec<Point> = vec![];
+        let mut added_idx: Vec<bool> = Vec::new();
+        added_idx.resize(points.len(), false);
+
+        for i in 0..points.len() {
+            if added_idx[i] {
+                continue;
+            }
+
+            let mut p1 = points[i];
+            for j in (i + 1)..points.len() {
+                if added_idx[j] {
+                    continue;
+                }
+
+                let p2 = points[j];
+                if should_merge(p1, p2) {
+                    dbg!(should_merge(p1, p2));
+                    p1 = merge_points(p1, p2);
+                    added_idx[i] = true;
+                    added_idx[j] = true;
+                }
+            }
+
+            retv.push(p1);
+        }
+        return retv;
+    }
+
     pub fn write_to_csv(&self, filename: String) -> Result<(), Box<dyn Error>> {
         info!("writing bht to file: {}", filename);
         let mut wtr = csv::Writer::from_path(filename)?;
         wtr.write_record(&["mass", "x_pos", "y_pos", "z_pos", "x_vel", "y_vel", "z_vel"])?;
 
-        for p in self.points.iter() {
+        for p in self.do_merge_points(&self.points).iter() {
             let (x, y, z) = p.position();
             let mass = p.mass();
             let (xv, yv, zv) = p.velocity().position();
@@ -87,6 +117,25 @@ impl BHTree {
 
         Ok(wtr.flush()?)
     }
+}
+
+fn should_merge(p1: Point, p2: Point) -> bool {
+    let dist = p1.distance_to(p2);
+    dbg!(dist);
+    return (dist <= p1.schwarzchild_radius()) || (dist <= p2.schwarzchild_radius());
+}
+
+fn merge_points(p1: Point, p2: Point) -> Point {
+    debug!("merging points {} and {}", p1, p2);
+    let (x1, y1, z1) = p1.position();
+    let (x2, y2, z2) = p2.position();
+    return Point::new(
+        p1.mass() + p2.mass(),
+        (x1 + x2) / 2.,
+        (y1 + y2) / 2.,
+        (z1 + z2) / 2.,
+        p1.velocity() + p2.velocity(),
+    );
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -287,5 +336,38 @@ mod test_bht {
         let bht2: BHTree = serde_json::from_str(&serialized).unwrap();
         let rt_serialized = serde_json::to_string_pretty(&bht2).unwrap();
         assert_eq!(serialized, rt_serialized);
+    }
+
+    #[test]
+    fn merge_test() {
+        let bht = BHTree::new(0.5, 5., 0., 0., 0.);
+        let v = vec![
+            Point::new(1., 0., 0., 0., Vec3d::new_zero()),
+            Point::new(1., 1., 0., 0., Vec3d::new_zero()),
+            Point::new(1., 0., 1., 0., Vec3d::new_zero()),
+        ];
+
+        let vo = bht.do_merge_points(&v);
+        assert_eq!(v, vo);
+
+        let v = vec![
+            Point::new(1e99, 0., 0., 0., Vec3d::new_zero()),
+            Point::new(1e99, 1., 0., 0., Vec3d::new_zero()),
+            Point::new(1e99, 0., 1., 0., Vec3d::new_zero()),
+        ];
+        let vo = bht.do_merge_points(&v);
+        assert_eq!(vo.len(), 1);
+        // Can't compare floats directly.
+        assert!(vo[0].mass() - 3e99 < 1e-3);
+
+        let v = vec![
+            Point::new(1e99, 0., 0., 0., Vec3d::new_zero()),
+            Point::new(1e99, 1., 0., 0., Vec3d::new_zero()),
+            Point::new(1e99, 1e99, 1., 0., Vec3d::new_zero()),
+        ];
+        let vo = bht.do_merge_points(&v);
+        assert_eq!(vo.len(), 2);
+        // Can't compare floats directly.
+        assert!(vo[0].mass() - 2e99 < 1e-3);
     }
 }
