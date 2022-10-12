@@ -12,7 +12,7 @@ pub mod geometry;
 const THETA: f64 = 0.5;
 const GRAPH_SIZE: f64 = 100.;
 const NUM_POINTS: u64 = 500000;
-const TIME_STEP: f64 = 0.05;
+const TIME_STEP: f64 = 0.5;
 const STEPS: i32 = 10000;
 const PARTICLE_MASS_BASE: f64 = 1e10;
 const MASS_DIST_MEAN: f64 = 1.0;
@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let normal = Normal::new(MASS_DIST_MEAN, MASS_DIST_STDDEV).unwrap();
 
     info!("generating {} particles", NUM_POINTS);
-    for n in 0..NUM_POINTS {
+    for _ in 0..NUM_POINTS {
         let mut x: f64 = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
         let mut y: f64 = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
         let mut z: f64 = rng.gen_range(-GRAPH_SIZE..GRAPH_SIZE);
